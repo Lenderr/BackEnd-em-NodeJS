@@ -33,9 +33,9 @@ app.get('/pacientes', (req, res) => {
 app.post('/cadastro', (req, res) => {
   const novoPaciente = req.body;
 
-  // Validação básica (verifica se nome e idade estão presentes)
-  if (!novoPaciente.nome || !novoPaciente.idade) {
-    return res.status(400).json({ erro: "Nome e idade são obrigatórios." });
+  // Validação básica (verifica se nome, idade e email estão presentes)
+  if (!novoPaciente.nome || !novoPaciente.idade || !novoPaciente.email) {
+    return res.status(400).json({ erro: "Nome, idade e email são obrigatórios." });
   }
 
   // Gerar ID para o novo paciente
