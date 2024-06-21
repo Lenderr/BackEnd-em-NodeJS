@@ -3,13 +3,14 @@ const app = express();
 const port = 8080;
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
+const faker = require('faker-br');
 
 // Funções para carregar e salvar pacientes
 function carregarPacientes() {
   if (!fs.existsSync('pacientes.json')) {
     return [];
   }
-  
+
   try {
     const dados = fs.readFileSync('pacientes.json');
     return JSON.parse(dados);
@@ -31,15 +32,14 @@ function salvarPacientes(pacientes) {
 // Lista de pacientes (carregada do arquivo ou vazia)
 let pacientes = carregarPacientes();
 
-// Middleware para parsear JSON
+
 app.use(express.json());
 
-// Função para gerar um número aleatório dentro de um intervalo
+// Funções para gerar dados aleatórios
 function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-// Função para gerar uma data aleatória no formato AAAA-MM-DD
 function getRandomDate(startDate, endDate) {
   const startTimestamp = startDate.getTime();
   const endTimestamp = endDate.getTime();
@@ -51,58 +51,76 @@ function getRandomDate(startDate, endDate) {
   const month = ('0' + (randomDate.getMonth() + 1)).slice(-2);
   const day = ('0' + randomDate.getDate()).slice(-2);
 
-  return `${year}-${month}-${day}`; 
+  return `${day}-${month}-${year}`;
 }
 
-// Função para gerar um nome aleatório (simples)
 function getRandomName() {
   const nomes = ['Alice', 'Bob', 'Carlos', 'Diana', 'Eduardo', 'Fernanda', 'Gabriel', 'Helena', 'Igor', 'Julia'];
   return nomes[getRandomInt(0, nomes.length - 1)];
 }
 
-// Função para gerar um email aleatório (simples)
 function getRandomEmail() {
-  return `${getRandomName().toLowerCase()}@example.com`;
+  return `${getRandomName().toLowerCase()}@examplo.com`;
 }
 
-// Validação básica de email
+function getRandomCPF() {
+  return cpf.generate();
+}
+
+function getRandomRG() {
+  return faker.br.rg();
+}
+
+function getRandomPhoneNumber() {
+  return faker.phone.phoneNumber('(##) #####-####');
+}
+
+
 function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }
 
-// Rota GET /pacientes
+
 app.get('/pacientes', (req, res) => {
   res.json(pacientes);
 });
 
-// Rota POST /cadastro
 app.post('/cadastro', (req, res) => {
-  const { nome, idade, email, data } = req.body;
+  const { nome, idade, email, data, cpf, rg, telefone, contatoEmergencia } = req.body;
+  const cpfValue = req.body.cpf; 
 
-  // Validação básica
-  if (!nome || !idade || !email || !data) {
-    return res.status(400).json({ erro: "Nome, idade, email e data são obrigatórios." });
+  if (!nome || !idade || !email || !data || !cpf || !rg || !telefone || !contatoEmergencia) {
+    return res.status(400).json({ erro: "Todos os campos são obrigatórios." });
   }
 
   if (!isValidEmail(email)) {
     return res.status(400).json({ erro: "Email inválido." });
   }
 
-  // Gerar ID para o novo paciente
-  const novoPaciente = { id: uuidv4(), nome, idade, email, data };
+  if (!contatoEmergencia.nome || !contatoEmergencia.telefone) {
+    return res.status(400).json({ erro: "Nome e telefone do contato de emergência são obrigatórios." });
+  }
 
-  // Adicionar o novo paciente à lista
+  const novoPaciente = {
+    id: uuidv4(),
+    nome,
+    idade,
+    email,
+    data,
+    cpf,
+    rg,
+    telefone,
+    contatoEmergencia
+  };
+ 
   pacientes.push(novoPaciente);
-
-  // Salvar os pacientes no arquivo JSON
   salvarPacientes(pacientes);
 
-  // Enviar resposta de sucesso
   res.status(201).json(novoPaciente);
 });
 
-// Rota GET /cardInfo 
+
 app.get('/cardInfo', (req, res) => {
   const cardInfo = pacientes.map(paciente => ({
     nome: paciente.nome,
@@ -121,7 +139,6 @@ app.get('/cardInfo', (req, res) => {
   res.json(cardInfoFormatado);
 });
 
-// Rota POST /ramCreate
 app.post('/ramCreate', (req, res) => {
   const novoPaciente = {
     id: uuidv4(),
@@ -129,7 +146,14 @@ app.post('/ramCreate', (req, res) => {
     idade: getRandomInt(18, 65),
     email: getRandomEmail(),
     data: getRandomDate(new Date('2023-01-01'), new Date()),
-    imagem: getRandomInt(1, 11)
+    imagem: getRandomInt(1, 11),
+    cpf: getRandomCPF(),
+    rg: getRandomRG(),
+    telefone: getRandomPhoneNumber(),
+    contatoEmergencia: {
+      nome: getRandomName(),
+      telefone: getRandomPhoneNumber()
+    }
   };
 
   pacientes.push(novoPaciente);
@@ -138,7 +162,29 @@ app.post('/ramCreate', (req, res) => {
   res.status(201).json(novoPaciente);
 });
 
-// Iniciar o servidor
+app.get('/paciente/:id', (req, res) => {
+  const pacienteId = req.params.id;
+  const paciente = pacientes.find(p => p.id === pacienteId);
+
+  if (!paciente) {
+    return res.status(404).json({ erro: "Paciente não encontrado." });
+  }
+
+  const pacienteInfo = {
+    nome: paciente.nome,
+    dataNascimento: paciente.data,
+    idFoto: paciente.imagem,
+    email: paciente.email,
+    telefone: paciente.telefone,
+    contatoEmergencia: paciente.contatoEmergencia,
+    cpf: paciente.cpf,
+    rg: paciente.rg    
+  };
+
+  res.json(pacienteInfo);
+});
+
+
 app.listen(port, () => {
   console.log(`Servidor rodando na porta ${port}`);
 });
